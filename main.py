@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from app import datatable  # models -> datatable로 변경됨
+from app import datatable
 from app.database import engine
-from app.routers import predictions
+from app.routers import predictions, newsdb
 from fastapi.middleware.cors import CORSMiddleware
 
 origins = [
@@ -25,6 +25,7 @@ app = FastAPI(title="Commodity Price AI Server")
 
 # 라우터 등록
 app.include_router(predictions.router)
+app.include_router(newsdb.router)
 
 @app.get("/")
 def read_root():

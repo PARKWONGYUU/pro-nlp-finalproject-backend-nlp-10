@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import UserDefinedType
 from .database import Base
+from pgvector.sqlalchemy import Vector
 
 class DocEmbeddings(Base):
     __tablename__ = "doc_embeddings"
@@ -11,7 +12,7 @@ class DocEmbeddings(Base):
     content = Column(Text)
     source_url = Column(String(255))
     created_at = Column(TIMESTAMP, server_default=func.now())
-    embedding = Column("vector(1536)")  # vector(1536)
+    embedding = Column(Vector(1536))  # vector(1536)
 
 class DailySummary(Base):
     __tablename__ = "daily_summary"

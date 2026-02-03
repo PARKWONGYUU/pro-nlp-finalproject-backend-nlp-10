@@ -2,6 +2,8 @@ from pydantic import BaseModel
 from datetime import date, datetime
 from typing import Optional, List
 
+#---------------------------------------------------------------------
+
 class TftPredBase(BaseModel):
     target_date: date
     commodity: str
@@ -30,6 +32,8 @@ class TftPredResponse(TftPredBase):
     class Config:
         from_attributes = True
 
+#---------------------------------------------------------------------
+
 class ExpPredCreate(BaseModel):
     pred_id: int
     content: str
@@ -45,6 +49,8 @@ class ExpPredResponse(BaseModel):
     class Config:
         from_attributes = True
 
+#---------------------------------------------------------------------
+
 class DailySummaryCreate(BaseModel):
     target_date: date
     commodity: str
@@ -57,3 +63,23 @@ class DailySummaryResponse(DailySummaryCreate):
     
     class Config:
         from_attributes = True
+
+#---------------------------------------------------------------------
+
+class NewsBase(BaseModel):
+    content: str
+    source_url: Optional[str] = None
+    created_at: datetime
+
+
+class NewsCreate(NewsBase):
+    embedding: List[float]
+
+class NewsResponse(NewsBase):
+    id: int
+    
+    class Config:
+        from_attributes = True
+
+class NewsResponseWithVector(NewsResponse):
+    embedding: List[float]
