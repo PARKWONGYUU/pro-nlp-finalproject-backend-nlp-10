@@ -41,7 +41,7 @@ pro-nlp-finalproject-backend-nlp-10/
 │   ├── dataschemas.py     # Pydantic 스키마 (데이터 검증/직렬화)
 │   └── routers/           # API 라우터 폴더
 │       ├── predictions.py # 예측 및 설명 관련 API
-│       └── news.py        # 뉴스 벡터 검색 API
+│       └── newsdb.py        # 뉴스 벡터 검색 API
 ├── requirements.txt       # 의존성 패키지 목록
 └── README.md
 
