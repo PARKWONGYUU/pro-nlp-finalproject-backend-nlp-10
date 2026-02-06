@@ -43,29 +43,62 @@
 
 ```bash
 pro-nlp-finalproject-backend-nlp-10/
-├── app/
+├── app/                        # 메인 애플리케이션
 │   ├── __init__.py
-│   ├── config.py          # 설정 관리 (AWS, Feature 목록)
-│   ├── database.py        # DB 연결 세션 관리
-│   ├── crud.py            # DB 쿼리 함수 모음
-│   ├── datatable.py       # SQLAlchemy 모델 (DB 테이블 정의)
-│   ├── dataschemas.py     # Pydantic 스키마 (데이터 검증/직렬화)
-│   ├── ml/                # ML 모듈
+│   ├── config.py              # 설정 관리 (AWS, Feature 목록)
+│   ├── database.py            # DB 연결 세션 관리
+│   ├── crud.py                # DB 쿼리 함수 모음
+│   ├── datatable.py           # SQLAlchemy 모델 (DB 테이블 정의)
+│   ├── dataschemas.py         # Pydantic 스키마 (데이터 검증/직렬화)
+│   ├── ml/                    # 머신러닝 모듈
 │   │   ├── __init__.py
-│   │   ├── model_loader.py      # ONNX 모델 로더 (S3 다운로드, 캐싱)
-│   │   └── prediction_service.py # 예측 서비스 (추론 실행)
-│   └── routers/           # API 라우터 폴더
-│       ├── predictions.py # 예측 및 설명 관련 API
-│       ├── newsdb.py      # 뉴스 조회 API
-│       ├── historical_prices.py # 실제 가격 조회 API
-│       ├── market_metrics.py    # 시장 지표 조회 API
-│       └── simulation.py  # 실시간 시뮬레이션 API
-├── main.py                # 앱 진입점 (Entry Point)
-├── requirements.txt       # 의존성 패키지 목록
-├── .env                   # 환경 변수 (DB, AWS 자격증명)
-└── README.md
-
-+ 추가: api_client.py      # 외부 클라이언트 예시
+│   │   ├── model_loader.py          # ONNX 모델 로더 (S3/로컬)
+│   │   └── prediction_service.py    # TFT 예측 서비스
+│   └── routers/               # API 라우터
+│       ├── predictions.py           # 예측 및 설명 API
+│       ├── newsdb.py                # 뉴스 조회 API
+│       ├── historical_prices.py     # 실제 가격 API
+│       ├── market_metrics.py        # 시장 지표 API
+│       └── simulation.py            # 실시간 시뮬레이션 API
+│
+├── docs/                       # 📚 프로젝트 문서
+│   ├── README.md                    # 문서 가이드
+│   ├── plan.md                      # 프로젝트 계획
+│   ├── TFT_IMPLEMENTATION_SUMMARY.md   # TFT 구현 상세
+│   ├── REFACTORING_SUMMARY.md       # 리팩토링 내역
+│   ├── GIT_COMMIT_SUMMARY.md        # Git 히스토리
+│   ├── AI_SERVER_REQUIREMENTS.md    # AI 서버 요구사항
+│   ├── ENV_SETUP_GUIDE.md           # 환경 설정 가이드
+│   ├── IMPLEMENTATION_SUMMARY.md    # 구현 요약
+│   └── LOCAL_MODEL_GUIDE.md         # 로컬 모델 가이드
+│
+├── tests/                      # 🧪 테스트
+│   ├── README.md                    # 테스트 가이드
+│   ├── test_tft_model.py            # TFT 모델 테스트 (권장)
+│   ├── test_model.py                # 기본 모델 테스트
+│   ├── test_simulation_api.py       # API 테스트
+│   ├── check_files.py               # 파일 검증
+│   ├── check_onnx.py                # ONNX 검증
+│   └── inspect_pkl.py               # PKL 검증
+│
+├── scripts/                    # 🔧 유틸리티 스크립트
+│   ├── README.md                    # 스크립트 가이드
+│   ├── inspect_onnx_inputs.py       # ONNX 구조 분석
+│   └── inspect_pkl.py               # PKL 정보 확인
+│
+├── migrations/                 # 📊 DB 마이그레이션
+│   ├── 001_add_top6_to_top20_factors.sql
+│   └── 002_refactor.sql
+│
+├── temp/                       # 🗂 임시 파일 (gitignore)
+│   ├── *.onnx                       # ONNX 모델 파일
+│   └── *.pkl                        # 전처리 정보 파일
+│
+├── main.py                     # 🚀 애플리케이션 진입점
+├── requirements.txt            # 📦 Python 패키지 의존성
+├── .env                        # 🔐 환경 변수 (gitignore)
+├── .gitignore                  # Git 제외 파일 목록
+└── README.md                   # 📖 프로젝트 메인 문서
 ```
 
 ---
