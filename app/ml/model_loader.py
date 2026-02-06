@@ -123,11 +123,22 @@ class ONNXModelLoader:
         logger.info(f"✅ ONNX 세션 생성 완료: {onnx_file.name}")
 
         if pkl_file and pkl_file.exists():
-            with open(pkl_file, "rb") as f:
-                self.preprocessing_info[commodity] = pickle.load(f)
-            logger.info(f"✅ 전처리 정보 로드 완료: {pkl_file.name}")
+            try:
+                with open(pkl_file, "rb") as f:
+                    self.preprocessing_info[commodity] = pickle.load(f)
+                logger.info(f"✅ 전처리 정보 로드 완료: {pkl_file.name}")
+            except ModuleNotFoundError as e:
+                logger.warning(
+                    f"⚠️ PKL 파일에 불필요한 의존성 포함: {e}. "
+                    f"전처리 정보 없이 진행합니다."
+                )
+                self.preprocessing_info[commodity] = {}
+            except Exception as e:
+                logger.error(f"❌ 전처리 정보 로드 실패: {e}")
+                self.preprocessing_info[commodity] = {}
         else:
             logger.warning("⚠️ 전처리 정보 파일이 없습니다")
+            self.preprocessing_info[commodity] = {}
 
         return session
 
@@ -205,13 +216,24 @@ class ONNXModelLoader:
         self.sessions[commodity] = session
         logger.info(f"✅ [{commodity}] ONNX 세션 생성 완료 (from {latest_onnx_key})")
 
-        # 전처리 정보 로드
+        # 전처리 정보 로드 (실패해도 ONNX 모델은 사용 가능)
         if pkl_local.exists() and pkl_local.stat().st_size > 0:
-            with open(pkl_local, "rb") as f:
-                self.preprocessing_info[commodity] = pickle.load(f)
-            logger.info(f"✅ [{commodity}] 전처리 정보 로드 완료 (from {latest_pkl_key})")
+            try:
+                with open(pkl_local, "rb") as f:
+                    self.preprocessing_info[commodity] = pickle.load(f)
+                logger.info(f"✅ [{commodity}] 전처리 정보 로드 완료 (from {latest_pkl_key})")
+            except ModuleNotFoundError as e:
+                logger.warning(
+                    f"⚠️ [{commodity}] PKL 파일에 불필요한 의존성 포함: {e}. "
+                    f"전처리 정보 없이 진행합니다. AI 서버에서 PKL 재생성 권장."
+                )
+                self.preprocessing_info[commodity] = {}
+            except Exception as e:
+                logger.error(f"❌ [{commodity}] 전처리 정보 로드 실패: {e}")
+                self.preprocessing_info[commodity] = {}
         else:
             logger.warning(f"⚠️ [{commodity}] 전처리 정보 파일이 없습니다")
+            self.preprocessing_info[commodity] = {}
 
         return session
 
