@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import date, datetime
 from typing import Optional, List
 
@@ -60,6 +60,12 @@ class TftPredCreate(TftPredBase):
 class TftPredResponse(TftPredBase):
     id: int
     created_at: Optional[datetime] = None
+
+    @field_validator('model_type', mode='before')
+    @classmethod
+    def set_default_model_type(cls, v):
+        """model_type이 None이면 'TFT'로 설정"""
+        return v if v is not None else "TFT"
 
     class Config:
         from_attributes = True
