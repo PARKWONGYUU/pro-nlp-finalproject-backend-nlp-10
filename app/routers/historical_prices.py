@@ -9,12 +9,7 @@ router = APIRouter(
     tags=["Historical Prices"]
 )
 
-# POST /api/historical-prices
-@router.post("/historical-prices", response_model=dataschemas.HistoricalPriceResponse)
-def create_historical_price(item: dataschemas.HistoricalPriceCreate, db: Session = Depends(get_db)):
-    return crud.create_historical_price(db, item)
-
-# GET /api/historical-prices?commodity=Corn&start_date=2026-01-01&end_date=2026-01-31
+# GET /api/historical-prices?commodity=corn&start_date=2026-01-01&end_date=2026-01-31
 @router.get("/historical-prices", response_model=dataschemas.HistoricalPricesResponse)
 def get_historical_prices(
     commodity: str = Query(..., description="품목명"),

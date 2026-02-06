@@ -10,12 +10,7 @@ router = APIRouter(
     tags=["Market Metrics"]
 )
 
-# POST /api/market-metrics
-@router.post("/market-metrics", response_model=dataschemas.MarketMetricResponse)
-def create_market_metric(item: dataschemas.MarketMetricCreate, db: Session = Depends(get_db)):
-    return crud.create_market_metric(db, item)
-
-# GET /api/market-metrics?commodity=Corn&date=2026-02-03
+# GET /api/market-metrics?commodity=corn&date=2026-02-03
 @router.get("/market-metrics", response_model=dataschemas.MarketMetricsResponse)
 def get_market_metrics(
     commodity: str = Query(..., description="품목명"),

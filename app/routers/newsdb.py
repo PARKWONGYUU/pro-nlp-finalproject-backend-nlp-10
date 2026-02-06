@@ -8,11 +8,6 @@ router = APIRouter(
     tags=["News Data"]
 )
 
-@router.post("", response_model=dataschemas.NewsResponse)
-def create_news(item: dataschemas.NewsCreate, db: Session = Depends(database.get_db)):
-
-    return crud.create_doc_embedding(db, item)
-
 # URL: GET /api/newsdb?skip=0&limit=10
 # embedding 제외 목록 조회, skip ~ limit까지만 조회
 @router.get("", response_model=List[dataschemas.NewsResponse])

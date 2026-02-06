@@ -12,25 +12,26 @@ router = APIRouter(
 
 # --- [예측 (Predictions)] ---
 
-# POST /api/predictions
-@router.post("/predictions", response_model=dataschemas.TftPredResponse)
-def create_prediction(item: dataschemas.TftPredCreate, db: Session = Depends(get_db)):
-    return crud.create_tft_prediction(db, item)
-
-# GET /api/predictions?commodity=Corn&start_date=2024-01-01&end_date=2024-01-31
+# GET /api/predictions?commodity=corn
 @router.get("/predictions", response_model=List[dataschemas.TftPredResponse])
 def get_predictions(
-    commodity: str, 
-    start_date: date = Query(..., description="조회 시작일"),
-    end_date: date = Query(..., description="조회 종료일"),
+    commodity: str,
     db: Session = Depends(get_db)
 ):
-    pred = crud.get_tft_predictions(db, commodity, start_date, end_date)
+    """
+    최신 배치의 예측 데이터 반환
+    - 각 target_date별 created_at 최신
+    - 범위: 오늘-30일 ~ 오늘+60일
+    """
+    pred = crud.get_latest_predictions(db, commodity)
     if not pred:
-        raise HTTPException(status_code=404, detail="해당 날짜의 데이터가 없습니다.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"{commodity}의 최신 예측 데이터가 없습니다."
+        )
     return pred
 
-# GET /api/predictions/2025-12-01?commodity=Corn
+# GET /api/predictions/2025-12-01?commodity=corn
 @router.get("/predictions/{target_date}", response_model=dataschemas.TftPredResponse)
 def get_prediction_by_date(
     target_date: date, 
@@ -45,12 +46,7 @@ def get_prediction_by_date(
 
 # --- [설명 (Explanations)] ---
 
-# POST /api/explanations
-@router.post("/explanations", response_model=dataschemas.ExpPredResponse)
-def create_explanation(item: dataschemas.ExpPredCreate, db: Session = Depends(get_db)):
-    return crud.create_explanation(db, item)
-
-# GET /api/explanations/2025-12-01?commodity=Corn
+# GET /api/explanations/2025-12-01?commodity=corn
 @router.get("/explanations/{target_date}", response_model=dataschemas.ExpPredResponse)
 def get_explanation_by_date(
     target_date: date, 
