@@ -38,8 +38,9 @@ class Settings(BaseSettings):
     # ===========================
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
-    aws_region: str = "ap-northeast-2"
-    model_s3_bucket: Optional[str] = None
+    aws_region: str = "us-west-2"
+    model_s3_bucket: Optional[str] = "aitech-storage"
+    model_s3_prefix: str = "models/enhanced_tft/champion"
     
     @field_validator('model_s3_bucket')
     @classmethod
@@ -126,6 +127,7 @@ def print_settings_info():
     
     if settings.model_load_mode == "s3":
         print(f"S3 버킷: {settings.model_s3_bucket}")
+        print(f"S3 프리픽스: {settings.model_s3_prefix}")
         print(f"AWS 리전: {settings.aws_region}")
     
     print(f"모델 업데이트 체크 시간: {settings.model_update_check_time}")
