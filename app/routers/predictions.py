@@ -30,18 +30,37 @@ def get_predictions(
             detail=f"{commodity}의 최신 예측 데이터가 없습니다."
         )
     
-    # 과거 30일 ~ 오늘까지의 실제 가격 조회
+    # 과거 30일 ~ 오늘까지의 실제 가격 조회 (휴장일 처리 포함)
     today = datetime.now().date()
     start_date = today - timedelta(days=30)
     prices = crud.get_historical_prices(db, commodity, start_date, today)
     
-    prices_list = [
-        dataschemas.HistoricalPriceItem(
-            date=p.date.isoformat(),
-            actual_price=float(p.actual_price)
-        )
-        for p in prices
-    ] if prices else []
+    # DB에서 가져온 거래일 데이터를 dict로 변환
+    price_dict = {p.date: float(p.actual_price) for p in prices} if prices else {}
+    
+    # 모든 날짜에 대해 연속된 리스트 생성 (휴장일 포함)
+    prices_list = []
+    last_price = None
+    
+    current_date = start_date
+    while current_date <= today:
+        if current_date in price_dict:
+            # 거래일: 실제 가격
+            last_price = price_dict[current_date]
+            prices_list.append(dataschemas.HistoricalPriceItem(
+                date=current_date.isoformat(),
+                actual_price=last_price,
+                is_trading_day=True
+            ))
+        elif last_price is not None:
+            # 휴장일: 이전 거래일의 가격으로 채움
+            prices_list.append(dataschemas.HistoricalPriceItem(
+                date=current_date.isoformat(),
+                actual_price=last_price,
+                is_trading_day=False
+            ))
+        
+        current_date += timedelta(days=1)
     
     return dataschemas.PredictionsWithPricesResponse(
         predictions=pred,
