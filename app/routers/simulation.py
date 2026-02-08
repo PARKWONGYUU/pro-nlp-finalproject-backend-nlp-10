@@ -312,12 +312,23 @@ def _update_historical_data_with_predictions(
     # 날짜 업데이트 (가장 오래된 N일 제거하고 새 날짜 추가)
     historical_data['dates'] = historical_data['dates'][num_days:]
     
+    # 슬라이싱 전에 필요한 값들을 미리 저장 (순서 문제 방지)
+    old_features = {
+        name: values.copy() 
+        for name, values in historical_data['features'].items()
+    }
+    
     # 각 feature 업데이트
     for feature_name in historical_data['features']:
-        feature_values = historical_data['features'][feature_name]
+        feature_values = old_features[feature_name]
         
         # 가장 오래된 N일 제거
-        feature_values = feature_values[num_days:]
+        feature_values_trimmed = feature_values[num_days:]
+        
+        # 슬라이싱 후 비어있으면 경고
+        if len(feature_values_trimmed) == 0:
+            logger.warning(f"⚠️ feature '{feature_name}'의 데이터가 부족합니다. 원본 데이터 유지")
+            continue
         
         # 예측 기반 새 값 생성
         if feature_name == 'close':
@@ -325,24 +336,30 @@ def _update_historical_data_with_predictions(
             new_values = predicted_prices
         elif feature_name in ['open', 'high', 'low']:
             # 가격 관련: close 기반으로 생성
-            new_values = [
-                p * (1 + (feature_values[-1] / historical_data['features']['close'][-1] - 1))
-                for p in predicted_prices
-            ]
+            # 최근 close와의 비율을 유지
+            old_close_last = old_features['close'][-1]
+            old_feature_last = feature_values[-1]
+            
+            if old_close_last != 0:
+                ratio = old_feature_last / old_close_last
+                new_values = [p * ratio for p in predicted_prices]
+            else:
+                new_values = predicted_prices
         elif feature_name == 'volume':
             # 거래량: 최근 평균 유지
-            avg_volume = sum(feature_values[-7:]) / 7
+            recent_values = feature_values[-min(7, len(feature_values)):]
+            avg_volume = sum(recent_values) / len(recent_values) if recent_values else 0
             new_values = [avg_volume] * num_days
         elif feature_overrides and feature_name in feature_overrides:
             # Override된 feature: 고정값 사용
             new_values = [feature_overrides[feature_name]] * num_days
         else:
             # 기타 feature: 마지막 값 유지
-            last_value = feature_values[-1]
+            last_value = feature_values[-1] if len(feature_values) > 0 else 0
             new_values = [last_value] * num_days
         
         # 업데이트
-        historical_data['features'][feature_name] = feature_values + new_values
+        historical_data['features'][feature_name] = feature_values_trimmed + new_values
 
 
 def _calculate_summary(predictions: List[dataschemas.SimulationPredictionItem]) -> dict:
