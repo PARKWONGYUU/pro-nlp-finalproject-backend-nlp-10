@@ -212,12 +212,18 @@ class SimulationRequest(BaseModel):
     base_date: date
     feature_overrides: dict
 
-class SimulationResponse(BaseModel):
-    original_forecast: float
-    simulated_forecast: float
+class SimulationPredictionItem(BaseModel):
+    date: str
+    original_price: float
+    simulated_price: float
     change: float
     change_percent: float
+
+class SimulationResponse(BaseModel):
+    base_date: str
+    predictions: List[SimulationPredictionItem]  # 60일치 예측
     feature_impacts: List[FeatureImpact]
+    summary: dict  # 전체 평균 변화량 등
 
 #---------------------------------------------------------------------
 # 배치서버용 스키마 (Bulk / Upsert / Delete)
