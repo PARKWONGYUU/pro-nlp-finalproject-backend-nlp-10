@@ -78,18 +78,42 @@ class ImpactNews(BaseModel):
     impact_score: int
     analysis: str
 
+# 새로운 설명 구조를 위한 스키마
+class TopFactorItem(BaseModel):
+    """상위 영향 요인"""
+    name: str
+    category: str
+    impact: float
+    ratio: float
+
+class HighImpactNewsItem(BaseModel):
+    """영향력 있는 뉴스"""
+    title: str
+    impact: float
+    rank: int
+
+class CategoryImpactItem(BaseModel):
+    """카테고리별 영향도"""
+    category: str
+    impact_sum: float
+    ratio: float
+
 class ExpPredCreate(BaseModel):
     pred_id: int
-    content: str
-    llm_model: str
-    impact_news: Optional[List[dict]] = None
+    content: str  # Executive Summary
+    llm_model: Optional[str] = None
+    impact_news: Optional[List[HighImpactNewsItem]] = None
+    top_factors: Optional[List[TopFactorItem]] = None
+    category_summary: Optional[List[CategoryImpactItem]] = None
 
 class ExpPredResponse(BaseModel):
     id: int
     pred_id: int
-    content: str
-    llm_model: str
-    impact_news: Optional[List[ImpactNews]] = None
+    content: str  # Executive Summary
+    llm_model: Optional[str] = None
+    impact_news: Optional[List[HighImpactNewsItem]] = None
+    top_factors: Optional[List[TopFactorItem]] = None
+    category_summary: Optional[List[CategoryImpactItem]] = None
     created_at: datetime
 
     class Config:

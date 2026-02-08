@@ -79,6 +79,8 @@ erDiagram
         text content
         varchar(50) llm_model
         json impact_news
+        json top_factors
+        json category_summary
         timestamp created_at
     }
 
@@ -139,9 +141,39 @@ TFT 모델 예측 결과 (시계열 예측)
 - **용도**: 예측에 대한 자연어 설명 제공
 - **주요 컬럼**:
   - `pred_id`: `tft_pred.id` 외래키
-  - `content`: 설명 텍스트
-  - `llm_model`: 사용된 LLM 모델명
-  - `impact_news`: 영향력 있는 뉴스 메타데이터 (JSON)
+  - `content`: Executive Summary (LLM 생성 요약문)
+  - `llm_model`: 사용된 LLM 모델명 (예: "gpt-4")
+  - `impact_news`: 영향력 있는 뉴스 (JSON)
+    ```json
+    [
+      {
+        "title": "[2026-02-02] A 3-step Grain Marketing Plan...",
+        "impact": 0.2119,
+        "rank": 3
+      }
+    ]
+    ```
+  - `top_factors`: 상위 영향 요인 및 비율 (JSON)
+    ```json
+    [
+      {
+        "name": "예측 경과 시점",
+        "category": "시장 구조 (Market Structure)",
+        "impact": 0.6993,
+        "ratio": 0.3497
+      }
+    ]
+    ```
+  - `category_summary`: 카테고리별 영향도 요약 (JSON)
+    ```json
+    [
+      {
+        "category": "시장 구조 (Market Structure)",
+        "impact_sum": 1.0267,
+        "ratio": 0.5134
+      }
+    ]
+    ```
 - **관계**: `tft_pred`와 1:1 관계
 
 ### 5. market_metrics

@@ -88,9 +88,11 @@ class ExpPred(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     pred_id = Column(Integer, ForeignKey("tft_pred.id"))
-    content = Column(Text)
+    content = Column(Text)  # Executive Summary
     llm_model = Column(String(50))
-    impact_news = Column(JSON)
+    impact_news = Column(JSON)  # high_impact_news
+    top_factors = Column(JSON)  # top_factors_impact_ratio
+    category_summary = Column(JSON)  # category_impact_ratio
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     prediction = relationship("TftPred", back_populates="explanation")
