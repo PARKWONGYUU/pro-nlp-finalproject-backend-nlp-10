@@ -201,41 +201,51 @@ def _run_60day_predictions(
     request: dataschemas.SimulationRequest,
     historical_data: Dict
 ) -> List[dataschemas.SimulationPredictionItem]:
-    """미래 60일치 원본 및 시뮬레이션 예측 실행"""
+    """
+    미래 60일치 Rolling Prediction 실행
+    
+    7일씩 예측하고, 예측 결과를 다음 입력으로 사용하여
+    실제 rolling window 방식으로 60일 예측 수행
+    """
     pred_service = get_prediction_service()
     predictions = []
     
     try:
-        # TFT 모델은 한 번에 7일을 예측하므로, 60일을 위해 반복 필요
-        # 하지만 단순화를 위해 rolling window로 처리
+        # 원본 및 시뮬레이션용 historical data 복사
+        original_hist = _copy_historical_data(historical_data)
+        simulated_hist = _copy_historical_data(historical_data)
         
-        # 원본 예측 (override 없이)
-        original_result = pred_service.predict_tft(
-            request.commodity, 
-            historical_data,
-            feature_overrides=None
-        )
+        # 60일 예측을 위해 9번 반복 (7일 * 9 = 63일, 처음 60일만 사용)
+        num_cycles = (60 + 6) // 7  # 9 cycles
         
-        # 시뮬레이션 예측 (override 적용)
-        simulated_result = pred_service.predict_tft(
-            request.commodity,
-            historical_data,
-            feature_overrides=request.feature_overrides
-        )
-        
-        # 7일 예측을 60일로 확장 (rolling prediction)
-        # 실제로는 7일씩 예측을 반복해야 하지만, 현재는 7일치만 반환
-        original_prices = original_result['predictions']
-        simulated_prices = simulated_result['predictions']
-        
-        # 60일을 위해 7일 예측을 반복 (임시 구현)
-        cycles = 60 // 7 + 1  # 9 cycles
-        
-        for cycle in range(cycles):
+        for cycle in range(num_cycles):
+            if len(predictions) >= 60:
+                break
+            
+            logger.info(f"Rolling prediction cycle {cycle + 1}/{num_cycles}")
+            
+            # 원본 예측 (override 없이)
+            original_result = pred_service.predict_tft(
+                request.commodity, 
+                original_hist,
+                feature_overrides=None
+            )
+            
+            # 시뮬레이션 예측 (override 적용)
+            simulated_result = pred_service.predict_tft(
+                request.commodity,
+                simulated_hist,
+                feature_overrides=request.feature_overrides
+            )
+            
+            # 7일 예측 결과 추가
+            original_prices = original_result['predictions']
+            simulated_prices = simulated_result['predictions']
+            
             for day_idx in range(len(original_prices)):
                 if len(predictions) >= 60:
                     break
-                    
+                
                 pred_date = request.base_date + timedelta(days=len(predictions) + 1)
                 original_price = original_prices[day_idx]
                 simulated_price = simulated_prices[day_idx]
@@ -251,8 +261,18 @@ def _run_60day_predictions(
                     change_percent=round(change_percent, 2)
                 ))
             
-            if len(predictions) >= 60:
-                break
+            # Rolling window: 예측된 7일을 다음 입력으로 사용
+            if len(predictions) < 60:
+                _update_historical_data_with_predictions(
+                    original_hist, 
+                    original_prices, 
+                    None
+                )
+                _update_historical_data_with_predictions(
+                    simulated_hist, 
+                    simulated_prices, 
+                    request.feature_overrides
+                )
         
         return predictions[:60]  # 정확히 60일만 반환
         
@@ -264,6 +284,65 @@ def _run_60day_predictions(
             status_code=500,
             detail=f"예측 실행 실패: {str(e)}"
         )
+
+
+def _copy_historical_data(historical_data: Dict) -> Dict:
+    """Historical data 깊은 복사"""
+    import copy
+    return {
+        'dates': historical_data['dates'].copy(),
+        'features': {k: v.copy() for k, v in historical_data['features'].items()}
+    }
+
+
+def _update_historical_data_with_predictions(
+    historical_data: Dict,
+    predicted_prices: List[float],
+    feature_overrides: Optional[Dict[str, float]]
+):
+    """
+    예측된 가격으로 historical data 업데이트 (rolling window)
+    
+    - 가장 오래된 N일 제거
+    - 예측된 N일 추가
+    - 모든 feature를 적절히 채움
+    """
+    num_days = len(predicted_prices)
+    
+    # 날짜 업데이트 (가장 오래된 N일 제거하고 새 날짜 추가)
+    historical_data['dates'] = historical_data['dates'][num_days:]
+    
+    # 각 feature 업데이트
+    for feature_name in historical_data['features']:
+        feature_values = historical_data['features'][feature_name]
+        
+        # 가장 오래된 N일 제거
+        feature_values = feature_values[num_days:]
+        
+        # 예측 기반 새 값 생성
+        if feature_name == 'close':
+            # 가격: 예측값 사용
+            new_values = predicted_prices
+        elif feature_name in ['open', 'high', 'low']:
+            # 가격 관련: close 기반으로 생성
+            new_values = [
+                p * (1 + (feature_values[-1] / historical_data['features']['close'][-1] - 1))
+                for p in predicted_prices
+            ]
+        elif feature_name == 'volume':
+            # 거래량: 최근 평균 유지
+            avg_volume = sum(feature_values[-7:]) / 7
+            new_values = [avg_volume] * num_days
+        elif feature_overrides and feature_name in feature_overrides:
+            # Override된 feature: 고정값 사용
+            new_values = [feature_overrides[feature_name]] * num_days
+        else:
+            # 기타 feature: 마지막 값 유지
+            last_value = feature_values[-1]
+            new_values = [last_value] * num_days
+        
+        # 업데이트
+        historical_data['features'][feature_name] = feature_values + new_values
 
 
 def _calculate_summary(predictions: List[dataschemas.SimulationPredictionItem]) -> dict:
