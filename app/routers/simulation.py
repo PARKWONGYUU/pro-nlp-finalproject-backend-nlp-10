@@ -305,7 +305,7 @@ def _update_historical_data_with_predictions(
     
     - 가장 오래된 N일 제거
     - 예측된 N일 추가
-    - 모든 feature를 적절히 채움
+    - 60일 window 유지
     """
     num_days = len(predicted_prices)
     
@@ -322,13 +322,14 @@ def _update_historical_data_with_predictions(
     for feature_name in historical_data['features']:
         feature_values = old_features[feature_name]
         
+        # 최소 필요 길이 확인 (60일 유지 필요)
+        if len(feature_values) < num_days:
+            logger.warning(f"⚠️ feature '{feature_name}'의 데이터가 {len(feature_values)}일로 부족합니다 (최소 {num_days}일 필요). 원본 유지")
+            historical_data['features'][feature_name] = feature_values
+            continue
+        
         # 가장 오래된 N일 제거
         feature_values_trimmed = feature_values[num_days:]
-        
-        # 슬라이싱 후 비어있으면 경고
-        if len(feature_values_trimmed) == 0:
-            logger.warning(f"⚠️ feature '{feature_name}'의 데이터가 부족합니다. 원본 데이터 유지")
-            continue
         
         # 예측 기반 새 값 생성
         if feature_name == 'close':
@@ -358,8 +359,13 @@ def _update_historical_data_with_predictions(
             last_value = feature_values[-1] if len(feature_values) > 0 else 0
             new_values = [last_value] * num_days
         
-        # 업데이트
-        historical_data['features'][feature_name] = feature_values_trimmed + new_values
+        # 업데이트 후 길이 확인
+        updated_values = feature_values_trimmed + new_values
+        historical_data['features'][feature_name] = updated_values
+        
+        # 디버깅: 첫 번째 feature만 로그
+        if feature_name == 'close':
+            logger.debug(f"Rolling window: {len(feature_values)} → {len(feature_values_trimmed)} → {len(updated_values)} (removed {num_days}, added {num_days})")
 
 
 def _calculate_summary(predictions: List[dataschemas.SimulationPredictionItem]) -> dict:
