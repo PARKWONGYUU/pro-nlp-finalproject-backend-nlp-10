@@ -44,7 +44,8 @@ class FeatureImpactCalculator:
     @staticmethod
     def calculate_impacts(
         feature_overrides: Dict[str, float],
-        historical_data: Dict[str, any]
+        historical_data: Dict[str, any],
+        predictions: List[dataschemas.SimulationPredictionItem]
     ) -> List[dataschemas.FeatureImpact]:
         """
         변경된 Feature들의 영향도 계산
@@ -52,25 +53,52 @@ class FeatureImpactCalculator:
         Args:
             feature_overrides: 사용자가 변경한 Feature들
             historical_data: 과거 데이터
+            predictions: 예측 결과 리스트
         
         Returns:
-            Feature 영향도 리스트
+            Feature 영향도 리스트 (기여도 포함)
         """
         impacts = []
+        
+        # 전체 평균 변화량
+        total_avg_change = sum(p.change for p in predictions) / len(predictions) if predictions else 0
+        
+        # 각 feature의 변화량 비율 계산
+        total_abs_change = 0
+        feature_changes = {}
         
         for feature_name, new_value in feature_overrides.items():
             current_value = FeatureImpactCalculator._get_current_value(
                 feature_name, 
                 historical_data
             )
+            value_change = new_value - current_value
+            abs_change = abs(value_change)
+            
+            feature_changes[feature_name] = {
+                'current_value': current_value,
+                'new_value': new_value,
+                'value_change': value_change,
+                'abs_change': abs_change
+            }
+            total_abs_change += abs_change
+        
+        # 기여도 계산: 전체 변화량을 각 feature의 변화 비율로 배분
+        for feature_name, changes in feature_changes.items():
+            if total_abs_change > 0:
+                contribution_ratio = changes['abs_change'] / total_abs_change
+                # 변화 방향 고려
+                contribution = total_avg_change * contribution_ratio * (1 if changes['value_change'] >= 0 else -1)
+            else:
+                contribution = 0
             
             impacts.append(
                 dataschemas.FeatureImpact(
                     feature=feature_name,
-                    current_value=current_value,
-                    new_value=new_value,
-                    value_change=new_value - current_value,
-                    contribution=0  # TODO: SHAP으로 정확한 기여도 계산
+                    current_value=round(changes['current_value'], 2),
+                    new_value=round(changes['new_value'], 2),
+                    value_change=round(changes['value_change'], 2),
+                    contribution=round(contribution, 2)
                 )
             )
         
@@ -115,16 +143,24 @@ def simulate_prediction(
     # 3. 60일치 예측 실행 (원본 + 시뮬레이션)
     predictions = _run_60day_predictions(request, historical_data)
     
-    # 4. Feature 영향도 계산
-    feature_impacts = FeatureImpactCalculator.calculate_impacts(
-        request.feature_overrides,
-        historical_data
-    )
-    
-    # 5. 요약 통계 계산
+    # 4. 요약 통계 계산
     summary = _calculate_summary(predictions)
     
-    logger.info(f"예측 완료 - {len(predictions)}일치")
+    # 5. Feature 영향도 계산 (예측 결과 기반)
+    feature_impacts = FeatureImpactCalculator.calculate_impacts(
+        request.feature_overrides,
+        historical_data,
+        predictions
+    )
+    
+    # 6. Summary에 feature별 기여도 추가
+    summary["feature_contributions"] = {
+        impact.feature: impact.contribution 
+        for impact in feature_impacts
+    }
+    summary["total_contribution"] = round(sum(impact.contribution for impact in feature_impacts), 2)
+    
+    logger.info(f"예측 완료 - {len(predictions)}일치, 평균 변화: {summary['avg_change']:.2f}")
     
     return dataschemas.SimulationResponse(
         base_date=request.base_date.isoformat(),
@@ -241,10 +277,18 @@ def _calculate_summary(predictions: List[dataschemas.SimulationPredictionItem]) 
     total_change_percent = sum(p.change_percent for p in predictions)
     avg_change_percent = total_change_percent / len(predictions)
     
+    avg_original = sum(p.original_price for p in predictions) / len(predictions)
+    avg_simulated = sum(p.simulated_price for p in predictions) / len(predictions)
+    
     return {
         "total_days": len(predictions),
+        "avg_original_price": round(avg_original, 2),
+        "avg_simulated_price": round(avg_simulated, 2),
         "avg_change": round(avg_change, 2),
         "avg_change_percent": round(avg_change_percent, 2),
+        "total_change": round(total_change, 2),
         "max_change": round(max(p.change for p in predictions), 2),
-        "min_change": round(min(p.change for p in predictions), 2)
+        "min_change": round(min(p.change for p in predictions), 2),
+        "max_change_date": max(predictions, key=lambda p: p.change).date,
+        "min_change_date": min(predictions, key=lambda p: p.change).date
     }
