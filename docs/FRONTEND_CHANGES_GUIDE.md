@@ -93,10 +93,34 @@ interface Explanation {
       "ratio": 0.2117
     },
     {
-      "name": "기사",
+      "name": "뉴스 주성분 5",
       "category": "외부 이벤트 (External Events)",
       "impact": 0.2119,
       "ratio": 0.106
+    },
+    {
+      "name": "전체 시계열의 장기적 흐름",
+      "category": "시장 구조 (Market Structure)",
+      "impact": 0.176,
+      "ratio": 0.088
+    },
+    {
+      "name": "연중 시기",
+      "category": "시장 구조 (Market Structure)",
+      "impact": 0.1514,
+      "ratio": 0.0757
+    },
+    {
+      "name": "Palmer 가뭄 지수",
+      "category": "기후 요인 (Climate)",
+      "impact": 0.0391,
+      "ratio": 0.0196
+    },
+    {
+      "name": "미국 10년물 국채 금리",
+      "category": "거시 경제 (Macroeconomics)",
+      "impact": 0.0285,
+      "ratio": 0.0143
     }
   ],
   "category_summary": [
@@ -120,166 +144,170 @@ interface Explanation {
 }
 ```
 
+## 📊 Market Metrics DB 구조
+
+### 저장되는 Feature (46개)
+
+`market_metrics` 테이블에는 TFT 모델의 입력 feature들이 날짜별로 저장됩니다.
+
+| 카테고리 | Feature (metric_id) | 개수 | 설명 |
+|----------|-------------------|------|------|
+| **가격/거래량** | `close`, `open`, `high`, `low`, `volume`, `EMA` | 6 | 옥수수 선물 가격 및 거래량 |
+| **뉴스 PCA** | `news_pca_0` ~ `news_pca_31` | 32 | 뉴스 임베딩을 PCA로 차원 축소한 feature |
+| **기후 지수** | `pdsi`, `spi30d`, `spi90d` | 3 | Palmer 가뭄 지수, 30일/90일 강수량 지수 |
+| **거시경제** | `10Y_Yield`, `USD_Index` | 2 | 미국 10년물 국채 금리, 달러 인덱스 |
+| **Hawkes Intensity** | `lambda_price`, `lambda_news` | 2 | 가격/뉴스 이벤트 강도 |
+| **기타** | `news_count` | 1 | 일일 뉴스 개수 |
+
+### Feature → Factor Name 매핑 (전체 46개)
+
+`top_factors`의 `name` 필드는 `market_metrics` DB의 feature를 사람이 이해하기 쉽게 변환한 것입니다.
+
+```typescript
+// Feature 한글명 매핑 (전체 46개 + 모델 내부 생성 feature)
+const FEATURE_LABELS: Record<string, string> = {
+  // === 가격/거래량 (6개) ===
+  'close': '종가',
+  'open': '시가',
+  'high': '고가',
+  'low': '저가',
+  'volume': '거래량',
+  'EMA': '지수 이동 평균',
+  
+  // === 뉴스 PCA (32개) ===
+  'news_pca_0': '뉴스 주성분 1',
+  'news_pca_1': '뉴스 주성분 2',
+  'news_pca_2': '뉴스 주성분 3',
+  'news_pca_3': '뉴스 주성분 4',
+  'news_pca_4': '뉴스 주성분 5',
+  'news_pca_5': '뉴스 주성분 6',
+  'news_pca_6': '뉴스 주성분 7',
+  'news_pca_7': '뉴스 주성분 8',
+  'news_pca_8': '뉴스 주성분 9',
+  'news_pca_9': '뉴스 주성분 10',
+  'news_pca_10': '뉴스 주성분 11',
+  'news_pca_11': '뉴스 주성분 12',
+  'news_pca_12': '뉴스 주성분 13',
+  'news_pca_13': '뉴스 주성분 14',
+  'news_pca_14': '뉴스 주성분 15',
+  'news_pca_15': '뉴스 주성분 16',
+  'news_pca_16': '뉴스 주성분 17',
+  'news_pca_17': '뉴스 주성분 18',
+  'news_pca_18': '뉴스 주성분 19',
+  'news_pca_19': '뉴스 주성분 20',
+  'news_pca_20': '뉴스 주성분 21',
+  'news_pca_21': '뉴스 주성분 22',
+  'news_pca_22': '뉴스 주성분 23',
+  'news_pca_23': '뉴스 주성분 24',
+  'news_pca_24': '뉴스 주성분 25',
+  'news_pca_25': '뉴스 주성분 26',
+  'news_pca_26': '뉴스 주성분 27',
+  'news_pca_27': '뉴스 주성분 28',
+  'news_pca_28': '뉴스 주성분 29',
+  'news_pca_29': '뉴스 주성분 30',
+  'news_pca_30': '뉴스 주성분 31',
+  'news_pca_31': '뉴스 주성분 32',
+  
+  // === 기후 지수 (3개) ===
+  'pdsi': 'Palmer 가뭄 지수',
+  'spi30d': '30일 강수량 지수',
+  'spi90d': '90일 강수량 지수',
+  
+  // === 거시경제 (2개) ===
+  '10Y_Yield': '미국 10년물 국채 금리',
+  'USD_Index': '달러 인덱스',
+  
+  // === Hawkes Intensity (2개) ===
+  'lambda_price': '가격 이벤트 강도',
+  'lambda_news': '뉴스 이벤트 강도',
+  
+  // === 기타 (1개) ===
+  'news_count': '뉴스 개수',
+  
+  // === 모델 내부 생성 feature (DB에 저장 안 됨) ===
+  // 이 feature들은 백엔드에서 동적으로 생성됨
+  'time_idx': '예측 경과 시점',
+  'day_of_year': '연중 시기',
+  'relative_time_idx': '상대적 시간 위치',
+  'encoder_length': '입력 시계열 길이',
+  'close_center': '종가 중심값',
+  'close_scale': '종가 스케일',
+};
+```
+
+**참고:**
+- **DB 저장 feature**: 46개 (`market_metrics` 테이블)
+- **동적 생성 feature**: 6개 (백엔드에서 실시간 계산)
+- **총 feature**: 52개 (TFT 모델 입력)
+
+### Category 분류
+
+| Category | 포함되는 Feature |
+|----------|-----------------|
+| **시장 구조 (Market Structure)** | 시계열 구조적 요인 (예: 예측 경과 시점, 시간 흐름) |
+| **기술적 지표 (Technical Indicators)** | `close`, `open`, `high`, `low`, `volume`, `EMA` |
+| **외부 이벤트 (External Events)** | `news_pca_*`, `news_count`, `lambda_news` |
+| **기후 요인 (Climate)** | `pdsi`, `spi30d`, `spi90d` |
+| **거시 경제 (Macroeconomics)** | `10Y_Yield`, `USD_Index` |
+
+---
+
 ## 🎨 UI/UX 개선 제안
 
 ### 1. Executive Summary 섹션
 
-기존 `content` 필드를 Executive Summary로 표시합니다.
+`content` 필드를 Executive Summary로 표시합니다.
 
-```tsx
-<section className="executive-summary">
-  <h3>📊 예측 요약</h3>
-  <p className="summary-text">{explanation.content}</p>
-  <span className="llm-badge">{explanation.llm_model}</span>
-</section>
-```
-
-**디자인 제안:**
-- 카드 형태로 상단에 배치
-- 배경색: 연한 회색 또는 흰색
-- 폰트: 가독성 좋은 본문 폰트 (16-18px)
+**디자인 요구사항:**
+- Executive Summary 전문 표시
+- LLM 모델 뱃지 표시 (gpt-4 등)
+- 카드 형태 레이아웃
 
 ---
 
 ### 2. 상위 영향 요인 (Top Factors) 섹션 ✨ 새로 추가
 
-`top_factors` 데이터를 시각화합니다.
+`top_factors` 데이터를 순위별로 시각화합니다.
 
-```tsx
-<section className="top-factors">
-  <h3>🎯 주요 영향 요인</h3>
-  <div className="factors-list">
-    {explanation.top_factors?.map((factor, index) => (
-      <div key={index} className="factor-item">
-        <div className="factor-rank">#{index + 1}</div>
-        <div className="factor-info">
-          <h4>{factor.name}</h4>
-          <span className="category-badge">{factor.category}</span>
-        </div>
-        <div className="factor-impact">
-          <div className="impact-bar" style={{ width: `${factor.ratio * 100}%` }}>
-            <span>{(factor.ratio * 100).toFixed(1)}%</span>
-          </div>
-          <span className="impact-value">영향도: {factor.impact.toFixed(3)}</span>
-        </div>
-      </div>
-    ))}
-  </div>
-</section>
-```
+**필수 표시 정보:**
+- 순위 (1, 2, 3...)
+- 요인명 (`name`): 예) "고가", "Palmer 가뭄 지수"
+- 카테고리 (`category`): 예) "기술적 지표", "기후 요인"
+- 영향 비율 (`ratio`): 진행률 바로 표시 (0~1 → 0%~100%)
+- 영향도 (`impact`): 수치로 표시
 
-**디자인 제안:**
-- 순위 표시 (1, 2, 3...)
+**디자인 요구사항:**
 - 진행률 바 (Horizontal Bar Chart)
-- 카테고리 뱃지 (색상 구분)
-  - 시장 구조: 파란색
-  - 기술적 지표: 초록색
-  - 외부 이벤트: 주황색
-  - 기후 요인: 하늘색
-  - 거시 경제: 보라색
-
-**예시 CSS:**
-```css
-.factor-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  border-bottom: 1px solid #e0e0e0;
-  gap: 16px;
-}
-
-.factor-rank {
-  font-size: 20px;
-  font-weight: bold;
-  color: #666;
-  min-width: 40px;
-}
-
-.impact-bar {
-  background: linear-gradient(90deg, #4CAF50, #8BC34A);
-  height: 24px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.category-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  background-color: #e3f2fd;
-  color: #1976d2;
-}
-```
+- 카테고리별 색상 구분
+- 상위 5~10개 표시 권장
 
 ---
 
 ### 3. 카테고리별 영향도 (Category Summary) 섹션 ✨ 새로 추가
 
-`category_summary` 데이터를 파이 차트 또는 도넛 차트로 시각화합니다.
+`category_summary` 데이터를 차트로 시각화합니다.
 
-```tsx
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+**필수 표시 정보:**
+- 카테고리명 (`category`)
+- 카테고리별 총 영향도 (`impact_sum`)
+- 전체 대비 비율 (`ratio`): 0~1 → 0%~100%
 
-const CATEGORY_COLORS = {
-  '시장 구조 (Market Structure)': '#2196F3',
-  '기술적 지표 (Technical Indicators)': '#4CAF50',
-  '외부 이벤트 (External Events)': '#FF9800',
-  '기후 요인 (Climate)': '#00BCD4',
-  '거시 경제 (Macroeconomics)': '#9C27B0',
-};
-
-<section className="category-summary">
-  <h3>📈 카테고리별 영향도</h3>
-  <ResponsiveContainer width="100%" height={300}>
-    <PieChart>
-      <Pie
-        data={explanation.category_summary}
-        dataKey="ratio"
-        nameKey="category"
-        cx="50%"
-        cy="50%"
-        outerRadius={100}
-        label={({ category, ratio }) => `${(ratio * 100).toFixed(1)}%`}
-      >
-        {explanation.category_summary?.map((entry, index) => (
-          <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.category] || '#999'} />
-        ))}
-      </Pie>
-      <Tooltip 
-        formatter={(value: number) => `${(value * 100).toFixed(2)}%`}
-      />
-      <Legend />
-    </PieChart>
-  </ResponsiveContainer>
-  
-  <div className="category-details">
-    {explanation.category_summary?.map((cat, index) => (
-      <div key={index} className="category-item">
-        <div 
-          className="category-color" 
-          style={{ backgroundColor: CATEGORY_COLORS[cat.category] }}
-        />
-        <span className="category-name">{cat.category}</span>
-        <span className="category-impact">
-          총 영향도: {cat.impact_sum.toFixed(3)} ({(cat.ratio * 100).toFixed(1)}%)
-        </span>
-      </div>
-    ))}
-  </div>
-</section>
-```
-
-**디자인 제안:**
+**디자인 요구사항:**
 - 파이 차트 또는 도넛 차트
-- 각 카테고리별 색상 구분
+- 각 카테고리별 색상 구분 (위 Category 색상 참고)
 - 범례 포함
-- 마우스 오버 시 상세 정보 표시
+- 비율 표시 (퍼센트)
+
+**카테고리 색상 가이드:**
+```typescript
+const CATEGORY_COLORS = {
+  '시장 구조 (Market Structure)': '#2196F3',      // 파란색
+  '기술적 지표 (Technical Indicators)': '#4CAF50', // 초록색
+  '외부 이벤트 (External Events)': '#FF9800',      // 주황색
+  '기후 요인 (Climate)': '#00BCD4',                // 하늘색
+  '거시 경제 (Macroeconomics)': '#9C27B0',         // 보라색
+};
+```
 
 ---
 
@@ -287,212 +315,126 @@ const CATEGORY_COLORS = {
 
 `impact_news` 구조가 변경되었습니다.
 
-**기존 코드 (AS-IS):**
-```tsx
-// ❌ 더 이상 작동하지 않음
-{explanation.impact_news?.map((news, index) => (
-  <div key={index}>
-    <h4>{news.title}</h4>
-    <p>출처: {news.source}</p>
-    <p>영향도: {news.impact_score}/10</p>
-    <p>{news.analysis}</p>
-  </div>
-))}
-```
-
-**새로운 코드 (TO-BE):**
-```tsx
-// ✅ 새로운 구조에 맞춤
-<section className="impact-news">
-  <h3>📰 영향력 있는 뉴스</h3>
-  {explanation.impact_news?.map((news, index) => (
-    <div key={index} className="news-item">
-      <div className="news-rank">#{news.rank}</div>
-      <div className="news-content">
-        <h4>{news.title}</h4>
-        <div className="news-impact">
-          <div className="impact-bar" style={{ width: `${news.impact * 100}%` }}>
-            <span>영향도: {(news.impact * 100).toFixed(1)}%</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  ))}
-</section>
-```
-
 **주요 변경점:**
-- `source` 필드 제거 → 제목에 날짜 포함됨
-- `impact_score` (1-10) → `impact` (0-1)로 변경
-- `analysis` 필드 제거
-- `rank` 필드 추가
+- ❌ 제거된 필드: `source`, `impact_score` (1-10), `analysis`
+- ✅ 새로운 필드: `rank`, `impact` (0-1)
+- 제목에 날짜 포함: `[YYYY-MM-DD] 뉴스 제목`
+
+**필수 표시 정보:**
+- 순위 (`rank`)
+- 제목 (`title`): 날짜 포함
+- 영향도 (`impact`): 0~1 → 0%~100%
 
 ---
 
-## 📱 반응형 레이아웃 제안
+## 🔗 Market Metrics API 활용
 
-```tsx
-<div className="explanation-container">
-  {/* 상단: Executive Summary */}
-  <div className="summary-section">
-    <ExecutiveSummary content={explanation.content} llmModel={explanation.llm_model} />
-  </div>
-  
-  <div className="content-grid">
-    {/* 좌측: 상위 영향 요인 + 뉴스 */}
-    <div className="left-column">
-      <TopFactors factors={explanation.top_factors} />
-      <ImpactNews news={explanation.impact_news} />
-    </div>
-    
-    {/* 우측: 카테고리별 영향도 */}
-    <div className="right-column">
-      <CategorySummary summary={explanation.category_summary} />
-    </div>
-  </div>
-</div>
+### 시뮬레이션에서 Market Metrics 사용
+
+시뮬레이션 기능에서 조정 가능한 5개 feature의 현재 값을 가져올 때 사용합니다.
+
+**API:**
+```
+GET /api/market-metrics?commodity={commodity}&date={date}
 ```
 
-**CSS Grid 예시:**
-```css
-.content-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-  margin-top: 24px;
+**응답 예시:**
+```json
+{
+  "commodity": "corn",
+  "date": "2026-02-06",
+  "metrics": [
+    {
+      "metric_id": "10Y_Yield",
+      "label": "미국 10년물 국채 금리",
+      "value": "4.2%",
+      "numeric_value": 4.2,
+      "trend": 0.1,
+      "impact": "neutral"
+    },
+    {
+      "metric_id": "USD_Index",
+      "label": "달러 인덱스",
+      "value": "103.5",
+      "numeric_value": 103.5,
+      "trend": -0.5,
+      "impact": "positive"
+    },
+    {
+      "metric_id": "pdsi",
+      "label": "Palmer 가뭄 지수",
+      "value": "-1.0",
+      "numeric_value": -1.0,
+      "trend": -0.2,
+      "impact": "negative"
+    },
+    {
+      "metric_id": "spi30d",
+      "label": "30일 강수량 지수",
+      "value": "0.5",
+      "numeric_value": 0.5,
+      "trend": 0.1,
+      "impact": "neutral"
+    },
+    {
+      "metric_id": "spi90d",
+      "label": "90일 강수량 지수",
+      "value": "-0.3",
+      "numeric_value": -0.3,
+      "trend": -0.1,
+      "impact": "negative"
+    }
+  ]
 }
+```
 
-@media (max-width: 768px) {
-  .content-grid {
-    grid-template-columns: 1fr;
+### 시뮬레이션 조정 가능 Feature (5개)
+
+| Feature | 한글명 | 설명 | 일반 범위 |
+|---------|--------|------|-----------|
+| `10Y_Yield` | 미국 10년물 국채 금리 | 미국 국채 금리 (%) | 0 ~ 10 |
+| `USD_Index` | 달러 인덱스 | 달러 강도 지수 | 80 ~ 120 |
+| `pdsi` | Palmer 가뭄 지수 | 토양 수분 상태 | -6 ~ 6 |
+| `spi30d` | 30일 강수량 지수 | 최근 30일 강수량 | -3 ~ 3 |
+| `spi90d` | 90일 강수량 지수 | 최근 90일 강수량 | -3 ~ 3 |
+
+**사용 예시:**
+```typescript
+// 1. 현재 값 조회
+const metrics = await fetchMarketMetrics('corn', '2026-02-06');
+const currentValues = {
+  '10Y_Yield': metrics.find(m => m.metric_id === '10Y_Yield')?.numeric_value || 0,
+  'USD_Index': metrics.find(m => m.metric_id === 'USD_Index')?.numeric_value || 0,
+  'pdsi': metrics.find(m => m.metric_id === 'pdsi')?.numeric_value || 0,
+  'spi30d': metrics.find(m => m.metric_id === 'spi30d')?.numeric_value || 0,
+  'spi90d': metrics.find(m => m.metric_id === 'spi90d')?.numeric_value || 0,
+};
+
+// 2. 시뮬레이션 실행 (사용자가 조정한 값)
+const simulationResult = await simulatePrediction({
+  commodity: 'corn',
+  base_date: '2026-02-06',
+  feature_overrides: {
+    '10Y_Yield': 4.5,     // 4.2 → 4.5로 조정
+    'USD_Index': 105.0,   // 103.5 → 105.0으로 조정
+    'pdsi': -2.0,         // -1.0 → -2.0으로 조정
   }
-}
+});
 ```
 
 ---
 
-## 🔧 마이그레이션 체크리스트
+## 📊 데이터 흐름
 
-### 1. 타입 정의 업데이트
-- [ ] `types/api.ts` 또는 `types/explanation.ts` 파일에 새로운 인터페이스 추가
-- [ ] 기존 `Explanation` 인터페이스 업데이트
-- [ ] `TopFactorItem`, `HighImpactNewsItem`, `CategoryImpactItem` 추가
+### 배치 서버 → DB
+1. 뉴스 크롤링 → `doc_embeddings`
+2. 시장 지표 수집 → `market_metrics` (46개 feature)
+3. 실제 가격 수집 → `historical_prices`
+4. TFT 모델 예측 → `tft_pred` (20개 top factors)
+5. LLM 설명 생성 → `exp_pred` (top_factors, category_summary, impact_news)
 
-### 2. API 호출 및 상태 관리
-- [ ] `explanation` API 응답 타입 업데이트
-- [ ] Redux/Zustand/Context 상태 타입 업데이트
-- [ ] API 에러 핸들링 확인
-
-### 3. UI 컴포넌트
-- [ ] `ExecutiveSummary.tsx` 컴포넌트 생성/수정
-- [ ] `TopFactors.tsx` 컴포넌트 생성 ✨
-- [ ] `CategorySummary.tsx` 컴포넌트 생성 ✨
-- [ ] `ImpactNews.tsx` 컴포넌트 수정 ⚠️
-- [ ] 차트 라이브러리 추가 (recharts, chart.js 등)
-
-### 4. 스타일링
-- [ ] 카테고리별 색상 정의
-- [ ] 진행률 바 스타일
-- [ ] 반응형 레이아웃
-- [ ] 다크 모드 대응 (선택)
-
-### 5. 데이터 핸들링
-- [ ] `null` 값 처리 (top_factors, category_summary, impact_news 모두 optional)
-- [ ] 빈 배열 처리
-- [ ] 로딩 상태 처리
-
-### 6. 테스트
-- [ ] 새로운 API 응답 형식 테스트
-- [ ] 컴포넌트 단위 테스트
-- [ ] 통합 테스트
-- [ ] E2E 테스트
-
----
-
-## 🧪 테스트 시나리오
-
-### 시나리오 1: 모든 데이터가 있는 경우
-```json
-{
-  "top_factors": [...],
-  "category_summary": [...],
-  "impact_news": [...]
-}
-```
-→ 모든 섹션이 정상적으로 표시되어야 함
-
-### 시나리오 2: 일부 데이터가 null인 경우
-```json
-{
-  "top_factors": null,
-  "category_summary": [...],
-  "impact_news": null
-}
-```
-→ 해당 섹션을 숨기거나 "데이터 없음" 메시지 표시
-
-### 시나리오 3: 빈 배열인 경우
-```json
-{
-  "top_factors": [],
-  "category_summary": [],
-  "impact_news": []
-}
-```
-→ "영향 요인 없음" 또는 Placeholder 표시
-
----
-
-## 📦 추천 라이브러리
-
-### 차트 시각화
-```bash
-npm install recharts
-# 또는
-npm install chart.js react-chartjs-2
-```
-
-### 프로그레스 바
-```bash
-npm install @mui/material @emotion/react @emotion/styled
-# LinearProgress 컴포넌트 사용
-```
-
-### 아이콘
-```bash
-npm install @mui/icons-material
-# 또는
-npm install react-icons
-```
-
----
-
-## 💡 추가 개선 아이디어
-
-### 1. 인터랙티브 차트
-- 클릭 시 해당 카테고리의 상세 요인 표시
-- 마우스 오버 시 툴팁으로 추가 정보 표시
-
-### 2. 비교 기능
-- 여러 날짜의 예측 설명 비교
-- 영향 요인 변화 추이 시각화
-
-### 3. 필터링
-- 카테고리별 필터링
-- 영향도 임계값 설정
-
-### 4. 내보내기
-- PDF 리포트 생성
-- 이미지 캡처 기능
-
----
-
-## 🔗 참고 문서
-
-- **Backend API Guide**: `docs/BATCH_API_GUIDE.md`
-- **Database Schema**: `docs/DATABASE_SCHEMA.md`
-- **Migration Guide**: `docs/MIGRATION_GUIDE_EXP_PRED.md`
-
-## 📞 문의사항
-
-API 응답 구조나 데이터 형식에 대한 문의는 백엔드 팀에 연락하세요.
+### 프론트엔드 ← 백엔드
+1. `GET /api/predictions` → 예측 목록 + 과거 30일 가격
+2. `GET /api/explanations/{date}` → 예측 설명 (구조화된 데이터)
+3. `GET /api/market-metrics` → 시장 지표 (시뮬레이션용)
+4. `POST /api/simulate` → What-If 시뮬레이션 (60일 예측)
