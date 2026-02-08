@@ -40,23 +40,21 @@ def get_predictions(
     
     # 모든 날짜에 대해 연속된 리스트 생성 (휴장일 포함)
     prices_list = []
-    last_price = None
     
     current_date = start_date
     while current_date <= today:
         if current_date in price_dict:
             # 거래일: 실제 가격
-            last_price = price_dict[current_date]
             prices_list.append(dataschemas.HistoricalPriceItem(
                 date=current_date.isoformat(),
-                actual_price=last_price,
+                actual_price=price_dict[current_date],
                 is_trading_day=True
             ))
-        elif last_price is not None:
-            # 휴장일: 이전 거래일의 가격으로 채움
+        else:
+            # 휴장일: null
             prices_list.append(dataschemas.HistoricalPriceItem(
                 date=current_date.isoformat(),
-                actual_price=last_price,
+                actual_price=None,
                 is_trading_day=False
             ))
         

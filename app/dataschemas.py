@@ -170,7 +170,7 @@ class MarketMetricsResponse(BaseModel):
 
 class HistoricalPriceItem(BaseModel):
     date: str
-    actual_price: float
+    actual_price: Optional[float] = None  # 휴장일은 null
     is_trading_day: bool = True  # False면 휴장일 (주말/공휴일)
 
 class HistoricalPriceBase(BaseModel):
