@@ -7,6 +7,13 @@ from app.ml.model_loader import start_model_update_scheduler
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
+# 로그 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 logger = logging.getLogger(__name__)
 
 origins = [

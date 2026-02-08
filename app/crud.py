@@ -22,13 +22,14 @@ def get_tft_predictions(
     
     Args:
         db: DB 세션
-        commodity: 품목명 (예: "corn")
+        commodity: 품목명 (예: "corn", "Corn" 모두 가능)
         start_date: 시작 날짜
         end_date: 종료 날짜
     
     Returns:
         TftPred 레코드 리스트 (최신순)
     """
+    commodity = commodity.lower()  # 소문자로 변환
     return db.query(datatable.TftPred)\
         .filter(datatable.TftPred.commodity == commodity)\
         .filter(datatable.TftPred.target_date >= start_date)\
@@ -47,12 +48,13 @@ def get_prediction_by_date(
     
     Args:
         db: DB 세션
-        commodity: 품목명
+        commodity: 품목명 (대소문자 무관)
         target_date: 목표 날짜
     
     Returns:
         TftPred 레코드 또는 None
     """
+    commodity = commodity.lower()  # 소문자로 변환
     return db.query(datatable.TftPred)\
         .filter(datatable.TftPred.commodity == commodity)\
         .filter(datatable.TftPred.target_date == target_date)\
@@ -75,11 +77,12 @@ def get_latest_predictions(
     
     Args:
         db: DB 세션
-        commodity: 품목명
+        commodity: 품목명 (대소문자 무관)
     
     Returns:
         TftPred 레코드 리스트 (날짜순)
     """
+    commodity = commodity.lower()  # 소문자로 변환
     today = datetime.now().date()
     start_date = today - timedelta(days=30)
     end_date = today + timedelta(days=60)
@@ -137,12 +140,13 @@ def get_explanation_by_date(
     
     Args:
         db: DB 세션
-        commodity: 품목명
+        commodity: 품목명 (대소문자 무관)
         target_date: 목표 날짜
     
     Returns:
         ExpPred 레코드 또는 None
     """
+    commodity = commodity.lower()  # 소문자로 변환
     return db.query(datatable.ExpPred)\
         .join(datatable.TftPred, datatable.ExpPred.pred_id == datatable.TftPred.id)\
         .filter(datatable.TftPred.commodity == commodity)\
@@ -191,12 +195,13 @@ def get_market_metrics(
     
     Args:
         db: DB 세션
-        commodity: 품목명
+        commodity: 품목명 (대소문자 무관)
         target_date: 목표 날짜
     
     Returns:
         MarketMetrics 레코드 리스트
     """
+    commodity = commodity.lower()  # 소문자로 변환
     return db.query(datatable.MarketMetrics)\
         .filter(datatable.MarketMetrics.commodity == commodity)\
         .filter(datatable.MarketMetrics.date == target_date)\
@@ -212,11 +217,13 @@ def get_historical_features(
     """
     과거 N일의 모든 feature를 market_metrics에서 로드
     
+    DB에 데이터가 없거나 부족하면 실시간으로 API에서 데이터를 가져옵니다.
+    
     TFT 모델의 입력 데이터 생성에 사용됩니다.
     
     Args:
         db: DB 세션
-        commodity: 품목명
+        commodity: 품목명 (대소문자 무관)
         end_date: 종료 날짜
         days: 조회할 일수 (기본 60일)
     
@@ -231,6 +238,10 @@ def get_historical_features(
             }
         }
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    commodity = commodity.lower()  # 소문자로 변환
     start_date = end_date - timedelta(days=days-1)
     
     # 기간 내 모든 market_metrics 조회
@@ -249,7 +260,35 @@ def get_historical_features(
     # 날짜 정렬
     sorted_dates = sorted(data_by_date.keys())
     
-    # Feature별로 시계열 데이터 구성
+    # 데이터가 없거나 부족하면 실시간으로 API에서 가져오기
+    if not sorted_dates or len(sorted_dates) < days:
+        logger.warning(
+            f"DB에 데이터가 부족합니다 (필요: {days}일, 존재: {len(sorted_dates)}일). "
+            f"실시간 API로 데이터를 가져옵니다."
+        )
+        
+        try:
+            from app.data_fetcher import fetch_realtime_features
+            from app.config import settings
+            
+            # 실시간 데이터 수집
+            result = fetch_realtime_features(
+                commodity=commodity,
+                end_date=end_date,
+                days=days,
+                fred_api_key=settings.fred_api_key
+            )
+            
+            logger.info(f"실시간 API에서 데이터 수집 완료: {len(result['dates'])}일")
+            return result
+            
+        except Exception as e:
+            logger.error(f"실시간 데이터 수집 실패: {e}")
+            # DB 데이터가 있으면 그것이라도 반환, 없으면 예외 발생
+            if not sorted_dates:
+                raise
+    
+    # DB에서 Feature별로 시계열 데이터 구성
     features = _build_feature_timeseries(data_by_date, sorted_dates)
     
     return {
@@ -318,13 +357,14 @@ def get_historical_prices(
     
     Args:
         db: DB 세션
-        commodity: 품목명
+        commodity: 품목명 (대소문자 무관)
         start_date: 시작 날짜
         end_date: 종료 날짜
     
     Returns:
         HistoricalPrices 레코드 리스트 (날짜순)
     """
+    commodity = commodity.lower()  # 소문자로 변환
     return db.query(datatable.HistoricalPrices)\
         .filter(datatable.HistoricalPrices.commodity == commodity)\
         .filter(datatable.HistoricalPrices.date >= start_date)\
@@ -356,6 +396,7 @@ def create_tft_predictions_bulk(db: Session, items: List[dataschemas.TftPredCrea
 
 def delete_tft_predictions(db: Session, commodity: str, start_date: date, end_date: date) -> int:
     """조건부 예측 삭제 (commodity + date 범위)"""
+    commodity = commodity.lower()  # 소문자로 변환
     count = db.query(datatable.TftPred).filter(
         datatable.TftPred.commodity == commodity,
         datatable.TftPred.target_date >= start_date,
@@ -447,6 +488,7 @@ def create_daily_summary(db: Session, data: dataschemas.DailySummaryCreate) -> d
 
 def delete_daily_summary(db: Session, commodity: str, start_date: date, end_date: date) -> int:
     """조건부 일일 요약 삭제"""
+    commodity = commodity.lower()  # 소문자로 변환
     count = db.query(datatable.DailySummary).filter(
         datatable.DailySummary.commodity == commodity,
         datatable.DailySummary.target_date >= start_date,
@@ -473,6 +515,7 @@ def create_market_metrics_bulk(
     db: Session, commodity: str, target_date: date, metrics: List[dataschemas.MarketMetricItem]
 ) -> int:
     """시장 지표 벌크 저장 (날짜당 46개 feature 등)"""
+    commodity = commodity.lower()  # 소문자로 변환
     records = [
         datatable.MarketMetrics(
             commodity=commodity,
@@ -498,6 +541,7 @@ def upsert_market_metrics(
     시장 지표 Upsert (commodity + date + metric_id 기준)
     - 기존 데이터 있으면 Update, 없으면 Insert
     """
+    commodity = commodity.lower()  # 소문자로 변환
     count = 0
     for m in metrics:
         existing = db.query(datatable.MarketMetrics).filter(
@@ -531,6 +575,7 @@ def upsert_market_metrics(
 
 def delete_market_metrics(db: Session, commodity: str, start_date: date, end_date: date) -> int:
     """조건부 시장 지표 삭제"""
+    commodity = commodity.lower()  # 소문자로 변환
     count = db.query(datatable.MarketMetrics).filter(
         datatable.MarketMetrics.commodity == commodity,
         datatable.MarketMetrics.date >= start_date,
@@ -557,6 +602,7 @@ def create_historical_prices_bulk(
     db: Session, commodity: str, prices: List[dataschemas.HistoricalPriceItem]
 ) -> int:
     """실제 가격 벌크 저장"""
+    commodity = commodity.lower()  # 소문자로 변환
     records = [
         datatable.HistoricalPrices(
             commodity=commodity,
@@ -577,6 +623,7 @@ def upsert_historical_prices(
     실제 가격 Upsert (commodity + date 기준)
     - 기존 데이터 있으면 Update, 없으면 Insert
     """
+    commodity = commodity.lower()  # 소문자로 변환
     count = 0
     for p in prices:
         existing = db.query(datatable.HistoricalPrices).filter(
@@ -600,6 +647,7 @@ def upsert_historical_prices(
 
 def delete_historical_prices(db: Session, commodity: str, start_date: date, end_date: date) -> int:
     """조건부 실제 가격 삭제"""
+    commodity = commodity.lower()  # 소문자로 변환
     count = db.query(datatable.HistoricalPrices).filter(
         datatable.HistoricalPrices.commodity == commodity,
         datatable.HistoricalPrices.date >= start_date,

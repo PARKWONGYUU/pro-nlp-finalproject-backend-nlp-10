@@ -42,7 +42,7 @@ class ONNXModelLoader:
         # 로컬 캐시 디렉토리 (S3 다운로드용)
         self._cache_dir = Path("./models_cache")
 
-        logger.info(f"모델 로더 초기화: mode={self.mode}, path={self.local_path}")
+        logger.info(f"모델 로더 초기화: mode={self.mode}, path=u{self.local_path}")
 
     # ===========================================
     # Public API

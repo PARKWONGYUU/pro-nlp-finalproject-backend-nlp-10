@@ -99,6 +99,39 @@ class Settings(BaseSettings):
         return v
     
     # ===========================
+    # 데이터 수집 설정
+    # ===========================
+    fred_api_key: Optional[str] = None
+    data_fetch_mode: str = "realtime"  # "realtime" 또는 "db"
+    
+    @field_validator('data_fetch_mode')
+    @classmethod
+    def validate_data_fetch_mode(cls, v: str) -> str:
+        """데이터 수집 모드 검증"""
+        allowed_modes = {'realtime', 'db'}
+        if v.lower() not in allowed_modes:
+            raise ValueError(
+                f"data_fetch_mode는 'realtime' 또는 'db'이어야 합니다. 입력값: {v}"
+            )
+        return v.lower()
+    
+    # ===========================
+    # 시뮬레이션 설정
+    # ===========================
+    simulation_mode: str = "dummy"  # "onnx" 또는 "dummy" (시연용)
+    
+    @field_validator('simulation_mode')
+    @classmethod
+    def validate_simulation_mode(cls, v: str) -> str:
+        """시뮬레이션 모드 검증"""
+        allowed_modes = {'onnx', 'dummy'}
+        if v.lower() not in allowed_modes:
+            raise ValueError(
+                f"simulation_mode는 'onnx' 또는 'dummy'이어야 합니다. 입력값: {v}"
+            )
+        return v.lower()
+    
+    # ===========================
     # 기타 설정
     # ===========================
     class Config:
