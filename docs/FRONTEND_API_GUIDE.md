@@ -28,7 +28,7 @@
 
 **현재 버전**: 인증 불필요
 
-향후 API 키 기반 인증이 추가될 수 있습니다.
+향후 API 키 기반 인증이 추가될 수 있습니다
 
 ---
 
@@ -181,20 +181,50 @@ GET /api/explanations/{target_date}?commodity={commodity}
 {
   "id": 1,
   "pred_id": 1,
-  "content": "2026년 2월 7일 옥수수 가격은 전날 대비 0.5% 상승할 것으로 예상됩니다. 주요 요인은 달러 지수 하락과 중국의 수요 증가입니다. 10년물 국채 금리가 안정세를 보이면서 투자 심리가 개선되었습니다.",
+  "content": "이번 옥수수 선물 가격 전망은 342.03으로 설정되었으며, 변동 범위는 335.12에서 350.15로 예상됩니다. 핵심적으로, 최근 시장에서의 고가가 저항선 역할을 하며 가격 형성에 중요한 영향을 미치고 있습니다...",
   "llm_model": "gpt-4",
   "impact_news": [
     {
-      "source": "Reuters",
-      "title": "중국, 옥수수 수입량 증가 전망",
-      "impact_score": 8,
-      "analysis": "중국의 축산업 성장으로 옥수수 수요가 증가하고 있습니다."
+      "title": "[2026-02-02] A 3-step Grain Marketing Plan to Help Manage Risk in 2026 - Successful Farming",
+      "impact": 0.2119,
+      "rank": 3
+    }
+  ],
+  "top_factors": [
+    {
+      "name": "예측 경과 시점",
+      "category": "시장 구조 (Market Structure)",
+      "impact": 0.6993,
+      "ratio": 0.3497
     },
     {
-      "source": "Bloomberg",
-      "title": "달러 지수 3개월 만에 최저치",
-      "impact_score": 7,
-      "analysis": "달러 약세로 원자재 가격 상승 압력이 커지고 있습니다."
+      "name": "고가",
+      "category": "기술적 지표 (Technical Indicators)",
+      "impact": 0.4233,
+      "ratio": 0.2117
+    },
+    {
+      "name": "기사",
+      "category": "외부 이벤트 (External Events)",
+      "impact": 0.2119,
+      "ratio": 0.106
+    }
+  ],
+  "category_summary": [
+    {
+      "category": "시장 구조 (Market Structure)",
+      "impact_sum": 1.0267,
+      "ratio": 0.5134
+    },
+    {
+      "category": "기술적 지표 (Technical Indicators)",
+      "impact_sum": 0.6938,
+      "ratio": 0.3469
+    },
+    {
+      "category": "외부 이벤트 (External Events)",
+      "impact_sum": 0.2119,
+      "ratio": 0.106
     }
   ],
   "created_at": "2026-02-06T12:00:00"
@@ -431,19 +461,33 @@ interface Prediction {
 }
 
 // 설명 데이터
-interface ImpactNews {
-  source: string;
-  title: string;
-  impact_score: number;
-  analysis: string;
+interface TopFactorItem {
+  name: string;          // 요인명
+  category: string;      // 카테고리
+  impact: number;        // 영향도 (0~1)
+  ratio: number;         // 비율 (0~1)
+}
+
+interface HighImpactNewsItem {
+  title: string;         // 뉴스 제목 (날짜 포함)
+  impact: number;        // 영향도 (0~1)
+  rank: number;          // 순위
+}
+
+interface CategoryImpactItem {
+  category: string;      // 카테고리명
+  impact_sum: number;    // 카테고리별 총 영향도
+  ratio: number;         // 전체 대비 비율
 }
 
 interface Explanation {
   id: number;
   pred_id: number;
-  content: string;
-  llm_model: string;
-  impact_news: ImpactNews[];
+  content: string;                              // Executive Summary
+  llm_model: string | null;
+  impact_news: HighImpactNewsItem[] | null;     // 구조 변경
+  top_factors: TopFactorItem[] | null;          // 새로 추가
+  category_summary: CategoryImpactItem[] | null; // 새로 추가
   created_at: string;
 }
 
